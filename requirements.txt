@@ -1,5 +1,6 @@
-fastapi
+fastapi~=0.68.0
 uvicorn
 numpy
 torch
-transformers
+transformers~=4.9.1
+pydantic~=1.8.2
