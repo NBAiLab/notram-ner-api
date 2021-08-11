@@ -8,5 +8,5 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt
 
 COPY ./app /app/app
-# TODO fix celery
-#ENTRYPOINT ["celery", "-A", "app.tasks", "worker", "--detach", "-P", "solo"]
+# Prestart script runs celery
+COPY ./prestart.sh /app

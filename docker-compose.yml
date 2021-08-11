@@ -7,17 +7,11 @@ services:
     environment:
       - DEVICE=${DEVICE:?err}
       - URN_BASE_PATH=/var/lib/urns
-#      - MODEL_PATH=""
+#      - MODEL_PATH="" TODO model download?
     volumes:
       - urns:/var/lib/urns:ro
     links:
       - redis
-#  celery:
-#    build:
-#      context: .
-#      dockerfile: celery.Dockerfile
-#    links:
-#      - redis
   redis:
     image: "redis"
 volumes:

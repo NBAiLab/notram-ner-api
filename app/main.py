@@ -1,6 +1,5 @@
 import json
 import os
-import subprocess
 from typing import List
 
 from celery.result import AsyncResult
@@ -11,10 +10,7 @@ from app.tasks import app as task_app
 from app.tasks import run_model_task
 from app.util import urn_to_path
 
-# logger = logging.getLogger(__name__)
 URN_BASE_PATH = os.environ.get("URN_BASE_PATH", "app/urn")
-
-celery_process = subprocess.Popen(["celery", "-A", "app.tasks", "worker", "-P", "solo"])
 
 description = """
 API for communication with Named Entity Recognition (NER) model based on NoTraM (Norwegian Transformer Model).

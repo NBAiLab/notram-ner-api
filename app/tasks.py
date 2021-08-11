@@ -1,5 +1,4 @@
 import os
-import time
 
 from celery import Celery
 from sentence_splitter import SentenceSplitter
