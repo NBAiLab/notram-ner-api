@@ -1,0 +1,29 @@
+version: "3.9"
+services:
+  web:
+    build: .
+    ports:
+      -  "8000:80"
+    environment:
+      - DEVICE=${DEVICE:?err}
+      - URN_BASE_PATH=/var/lib/urns
+#      - MODEL_PATH=""
+    volumes:
+      - urns:/var/lib/urns:ro
+    links:
+      - redis
+#  celery:
+#    build:
+#      context: .
+#      dockerfile: celery.Dockerfile
+#    links:
+#      - redis
+  redis:
+    image: "redis"
+volumes:
+  urns:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: ${URN_PATH:?err}
