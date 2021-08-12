@@ -1,16 +1,21 @@
 import json
 import os
+from distutils.util import strtobool
 from typing import List
+from urllib.request import urlopen
+from uuid import uuid4
 
+import bs4
 from celery.result import AsyncResult
 from fastapi import FastAPI
 
-from app.schemas import NerTextRequest, NerUrnRequest
-from app.tasks import app as task_app
-from app.tasks import run_model_task
+from app.schemas import NerTextRequest, NerUrnRequest, NerUrlRequest, NerResponse
 from app.util import urn_to_path
+from .tasks import app as task_app
+from .tasks import run_model_task, model
 
-URN_BASE_PATH = os.environ.get("URN_BASE_PATH", "app/urn")
+USE_QUEUE = bool(strtobool(os.environ.get("ENABLE_TASK_QUEUE", "False")))
+URN_BASE_PATH = os.environ.get("URN_BASE_PATH", None)
 
 description = """
 API for communication with Named Entity Recognition (NER) model based on NoTraM (Norwegian Transformer Model).
@@ -24,6 +29,7 @@ app = FastAPI(
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
     },
+
 )
 
 
@@ -32,7 +38,6 @@ async def groups():
     """
     Get available entity groups.
     """
-    from tasks import model
     entity_groups = []
     for label in model.config.id2label.values():
         s = label.split("-")
@@ -42,39 +47,35 @@ async def groups():
 
 
 @app.post("/entities/text")
-async def named_entities_from_text(body: NerTextRequest):
+async def named_entities_from_text(body: NerTextRequest) -> NerResponse:
     """
     Get named entities for a specific text.
     """
+    method = run_model_task.delay if USE_QUEUE else run_model_task
 
-    res: AsyncResult = run_model_task.delay(
+    res = method(
         text=body.text,
         include_entities=body.include_entities,
         do_group_entities=body.group_entities
     )
 
-    if body.wait:
-        res.get()
+    if USE_QUEUE:
+        if body.wait:
+            res.get()
 
-    return {"status": res.status, "uuid": res.id, "result": res.result}
+        return {"status": res.status, "uuid": res.id, "result": res.result}  # noqa
+
+    return {"status": "SUCCESS", "uuid": str(uuid4()), "result": res}  # noqa
 
 
-@app.post("/entities/urn")
-async def named_entities_from_urn(body: NerUrnRequest):
-    """
-    Get named entities for a specific URN.
-    """
-    path = os.path.join(URN_BASE_PATH, urn_to_path(body.urn))
-    with open(path) as file:
-        jsonl = [json.loads(line) for line in file]
-
-    jsonl = jsonl[0]  # Assuming only one record for now
-    all_text = "\n".join([paragraph["text"] for paragraph in jsonl["paragraphs"]])
-    # TODO keep track of index?
+@app.post("/entities/website")
+async def named_entities_from_website(body: NerUrlRequest):
+    html = urlopen(body.url)
+    soup = bs4.BeautifulSoup(html, "html.parser")
 
     return await named_entities_from_text(
         NerTextRequest(
-            text=all_text,
+            text=soup.text,
             include_entities=body.include_entities,
             do_group_entities=body.group_entities,
             wait=body.wait
@@ -82,7 +83,32 @@ async def named_entities_from_urn(body: NerUrnRequest):
     )
 
 
-@app.get("/task/{uuid}")
-async def task_result(uuid: str):
-    res = AsyncResult(uuid, app=task_app)
-    return {"status": res.status, "uuid": res.id, "result": res.result}
+if URN_BASE_PATH is not None:
+    @app.post("/entities/urn")
+    async def named_entities_from_urn(body: NerUrnRequest):
+        """
+        Get named entities for a specific URN.
+        """
+        path = os.path.join(URN_BASE_PATH, urn_to_path(body.urn))
+        with open(path) as file:
+            jsonl = [json.loads(line) for line in file]
+
+        jsonl = jsonl[0]  # Assuming only one record for now
+        all_text = "\n".join([paragraph["text"] for paragraph in jsonl["paragraphs"]])
+        # TODO keep track of index?
+
+        return await named_entities_from_text(
+            NerTextRequest(
+                text=all_text,
+                include_entities=body.include_entities,
+                do_group_entities=body.group_entities,
+                wait=body.wait
+            )
+        )
+
+if USE_QUEUE:
+    @app.get("/task/{uuid}")
+    async def task_result(uuid: str):
+        res = AsyncResult(uuid, app=task_app)
+        # TODO handle invalid uuid? Status is PENDING for invalid tasks also
+        return {"status": res.status, "uuid": res.id, "result": res.result}

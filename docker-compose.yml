@@ -1,13 +1,21 @@
 version: "3.9"
 services:
-  web:
+  fastapi-celery:
     build: .
     ports:
       -  "8000:80"
     environment:
       - DEVICE=${DEVICE:?err}
       - URN_BASE_PATH=/var/lib/urns
+      - WEB_CONCURRENCY=2
 #      - MODEL_PATH="" TODO model download?
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     volumes:
       - urns:/var/lib/urns:ro
     links:

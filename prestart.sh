@@ -1,2 +1,7 @@
 #!/usr/bin/env bash
-celery -A app.tasks worker -P solo --detach
+
+if $ENABLE_TASK_QUEUE;
+then
+  echo "Starting celery..."
+  celery -A app.tasks worker -P solo --detach
+fi

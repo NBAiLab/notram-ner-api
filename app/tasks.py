@@ -5,7 +5,7 @@ from sentence_splitter import SentenceSplitter
 
 from app.util import run_model, load_model
 
-MODEL_PATH = os.environ.get("MODEL_PATH", "app/model")  # TODO better way?
+MODEL_PATH = os.environ.get("MODEL_PATH", "model")  # TODO better way?
 
 app = Celery(
     name='tasks',
