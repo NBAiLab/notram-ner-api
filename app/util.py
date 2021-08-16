@@ -1,13 +1,26 @@
 import os
 import re
+from distutils.util import strtobool
 from typing import Optional, List
 
+from bs4 import BeautifulSoup
 from sentence_splitter import SentenceSplitter
 from transformers import AutoConfig, AutoModelForTokenClassification, AutoTokenizer, NerPipeline
 from transformers.pipelines import AggregationStrategy
 
+# Some environment variables
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+USE_QUEUE = bool(strtobool(os.environ.get("ENABLE_TASK_QUEUE", "False")))
+URN_BASE_PATH = os.environ.get("URN_BASE_PATH", None)
+MODEL_PATH = os.environ.get("MODEL_PATH", "model")  # TODO better way?
+DO_BATCHING = bool(strtobool(os.environ.get("DO_BATCHING", "False")))
 DEVICE = int(os.environ.get("DEVICE", -1))
+SPLIT_LANG = os.environ.get("SPLIT_LANG", "no")
+
+if SPLIT_LANG.lower() == "disable":
+    SENTENCE_SPLITTER = None
+else:
+    SENTENCE_SPLITTER = SentenceSplitter(language=SPLIT_LANG)
 
 
 def load_model(path):
@@ -19,7 +32,7 @@ def load_model(path):
     )
     tokenizer = AutoTokenizer.from_pretrained(path, use_fast=True, model_max_length=512)
 
-    return NerPipeline(
+    args = dict(
         model=model,
         tokenizer=tokenizer,
         ignore_labels=["O"],
@@ -27,16 +40,24 @@ def load_model(path):
         # ignore_subwords=True,
         device=DEVICE
     )
+    if DO_BATCHING:
+        from app.custom_ner_pipeline import StridedNerPipeline
+        args.update(dict(sentence_splitter=SENTENCE_SPLITTER))
+        pipe_class = StridedNerPipeline
+    else:
+        pipe_class = NerPipeline
+    return pipe_class(**args)
 
 
 def run_model(model: NerPipeline, text: str, sentence_splitter: SentenceSplitter,
               include_entities: Optional[List[str]] = None, do_group_entities: bool = False,
               validate: bool = True):
-    texts = batch_by_sentence(
-        text=text,
-        max_len=min(model.tokenizer.model_max_length, 1024),
-        sentence_splitter=sentence_splitter
-    )
+    # texts = batch_by_sentence(
+    #     text=text,
+    #     max_len=min(model.tokenizer.model_max_length, 1024),
+    #     sentence_splitter=sentence_splitter
+    # )
+    texts = text
     out = model(texts)
 
     # Adjust indices up
@@ -73,8 +94,11 @@ def batch_by_sentence(text: str, max_len: int, sentence_splitter: SentenceSplitt
         tot_len = 0
         for sentence in sentences:
             # Since sentence-splitter strips sentences, we must find start by searching from end of last sentence
-            starting_index = text.index(sentence, tot_len)
-            sentence = sentence.rjust(len(sentence) + starting_index - tot_len)
+            try:
+                starting_index = text.index(sentence, tot_len)
+                sentence = sentence.rjust(len(sentence) + starting_index - tot_len)
+            except ValueError:
+                pass  # TODO handle? Will break (at least some) returned indices
             tot_len += len(sentence)
 
             if len(texts[-1]) + len(sentence) < max_len:
@@ -138,3 +162,22 @@ def urn_to_path(urn: str):
         return f"newspaper/ocr/text/{year}/{month}/{day}/{name}/{urn}"
 
     return None
+
+
+def get_text(connection_or_html) -> str:
+    """
+    Uses BeautifulSoup to get text from HTML
+    """
+    # https://stackoverflow.com/questions/1936466/beautifulsoup-grab-visible-webpage-text/1983219#1983219
+    if isinstance(connection_or_html, BeautifulSoup):
+        soup = connection_or_html
+    else:
+        soup = BeautifulSoup(connection_or_html, "html5lib")
+
+    [s.extract() for s in soup(['style', 'script', '[document]', 'head', 'title'])]
+    [s.extract() for s in soup.find_all(attrs={"style": re.compile("display: ?none|visibility: ?hidden")})]
+
+    split = [re.sub(r"\s+", " ", s) for s in soup.stripped_strings]
+    split = [s for s in split if s]
+
+    return "\t".join(split)

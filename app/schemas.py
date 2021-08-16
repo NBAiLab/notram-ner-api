@@ -1,4 +1,4 @@
-from typing import Optional, List, Union, Any
+from typing import Optional, List, Union
 
 from pydantic import BaseModel, Field
 
@@ -7,6 +7,7 @@ class NerRequest(BaseModel):
     include_entities: Optional[List[str]] = Field(None,
                                                   description="A list of which entity groups to include in the result.")
     group_entities: bool = Field(False, description="Whether or not to group entities by type in the result.")
+
     wait: bool = True
 
 
@@ -16,6 +17,16 @@ class NerTextRequest(NerRequest):  # Need this to receive json data
     """
     text: str = Field(description="The text to find named entities in.")
 
+    class Config:
+        schema_extra = {
+            "example": {
+                "text": "Per Egil Kummervold og Javier de la Rosa har laget en Colab Notebook mens de begge var "
+                        "ansatt ved Nasjonalbiblioteket i Mo i Rana og i Oslo.",
+                "group_entities": False,
+                "wait": True
+            }
+        }
+
 
 class NerUrnRequest(NerRequest):
     """
@@ -23,12 +34,30 @@ class NerUrnRequest(NerRequest):
     """
     urn: str = Field(description="The URN for this document.")
 
+    class Config:
+        schema_extra = {
+            "example": {
+                "urn": "digibok_2015110307521.jsonl",
+                "group_entities": False,
+                "wait": False
+            }
+        }
+
 
 class NerUrlRequest(NerRequest):
     """
     Used for requests to /entities/url endpoint
     """
     url: str = Field(description="The URL for some webpage.")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "url": "https://www.nb.no/",
+                "group_entities": False,
+                "wait": True
+            }
+        }
 
 
 class NerEntityResult(BaseModel):

@@ -1,6 +1,5 @@
 import json
 import os
-from distutils.util import strtobool
 from typing import List
 from urllib.request import urlopen
 from uuid import uuid4
@@ -10,12 +9,9 @@ from celery.result import AsyncResult
 from fastapi import FastAPI
 
 from app.schemas import NerTextRequest, NerUrnRequest, NerUrlRequest, NerResponse
-from app.util import urn_to_path
+from app.util import urn_to_path, USE_QUEUE, URN_BASE_PATH, get_text
 from .tasks import app as task_app
 from .tasks import run_model_task, model
-
-USE_QUEUE = bool(strtobool(os.environ.get("ENABLE_TASK_QUEUE", "False")))
-URN_BASE_PATH = os.environ.get("URN_BASE_PATH", None)
 
 description = """
 API for communication with Named Entity Recognition (NER) model based on NoTraM (Norwegian Transformer Model).
@@ -39,7 +35,7 @@ async def groups():
     Get available entity groups.
     """
     entity_groups = []
-    for label in model.config.id2label.values():
+    for label in model.model.config.id2label.values():
         s = label.split("-")
         if s[0] != "I":
             entity_groups.append(s[-1])
@@ -71,11 +67,11 @@ async def named_entities_from_text(body: NerTextRequest) -> NerResponse:
 @app.post("/entities/website")
 async def named_entities_from_website(body: NerUrlRequest):
     html = urlopen(body.url)
-    soup = bs4.BeautifulSoup(html, "html.parser")
+    text = get_text(html)
 
     return await named_entities_from_text(
         NerTextRequest(
-            text=soup.text,
+            text=text,
             include_entities=body.include_entities,
             do_group_entities=body.group_entities,
             wait=body.wait

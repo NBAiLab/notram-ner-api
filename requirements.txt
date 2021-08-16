@@ -9,3 +9,4 @@ redis~=3.5.3
 sqlalchemy~=1.4.22
 sentence-splitter~=1.4
 beautifulsoup4~=4.9.3
+html5lib~=1.1
