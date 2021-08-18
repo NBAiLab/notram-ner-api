@@ -123,12 +123,25 @@ def batch_by_sentence(text: str, max_len: int, sentence_splitter: SentenceSplitt
 
 
 def group_entities(res):
+    print("Grouping...")
     entity_words = {}
     for r in res:
         entity_words.setdefault(r["entity_group"], []).append(r)
     schema_compatible = []
     for key, value in entity_words.items():
-        schema_compatible.append({"entity_group": key, "items": value})
+        present = {}
+        for entity in value:
+            if entity["word"] in present:
+                orig_occurrence = present[entity["word"]]
+                orig_occurrence["scores"].append(entity["score"])
+                orig_occurrence["starts"].append(entity["start"])
+                orig_occurrence["ends"].append(entity["end"])
+            else:
+                entity["scores"] = [entity.pop("score")]
+                entity["starts"] = [entity.pop("start")]
+                entity["ends"] = [entity.pop("end")]
+                present[entity["word"]] = entity
+        schema_compatible.append({"entity_group": key, "items": list(present.values())})
     res = schema_compatible
     return res
 

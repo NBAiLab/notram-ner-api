@@ -28,7 +28,7 @@ All the POST methods have options to group and/or filter entities by type, as we
 
 ### Environment variables
 
-- **USE_QUEUE** ("True" or "False")
+- **ENABLE_TASK_QUEUE** ("True" or "False")
 
   Whether or not to use a task queue to handle requests, default "False".
 - **URN_BASE_PATH**

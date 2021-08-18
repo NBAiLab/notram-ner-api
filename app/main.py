@@ -4,7 +4,6 @@ from typing import List
 from urllib.request import urlopen
 from uuid import uuid4
 
-import bs4
 from celery.result import AsyncResult
 from fastapi import FastAPI
 
@@ -73,7 +72,7 @@ async def named_entities_from_website(body: NerUrlRequest):
         NerTextRequest(
             text=text,
             include_entities=body.include_entities,
-            do_group_entities=body.group_entities,
+            group_entities=body.group_entities,
             wait=body.wait
         )
     )
@@ -97,7 +96,7 @@ if URN_BASE_PATH is not None:
             NerTextRequest(
                 text=all_text,
                 include_entities=body.include_entities,
-                do_group_entities=body.group_entities,
+                group_entities=body.group_entities,
                 wait=body.wait
             )
         )

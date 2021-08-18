@@ -4,7 +4,7 @@ from app.util import run_model, load_model, MODEL_PATH, SENTENCE_SPLITTER
 
 app = Celery(
     name='tasks',
-    broker='redis://localhost:6379',
+    broker='redis://redis:6379',
     backend='db+sqlite:///db.sqlite3'
 )
 

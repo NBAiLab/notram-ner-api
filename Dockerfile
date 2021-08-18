@@ -11,4 +11,4 @@ COPY ./app /app/app
 COPY ./model /app/model
 
 # Prestart script runs celery
-COPY ./prestart.sh /app
+COPY prestart.sh /app/prestart.sh
