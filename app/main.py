@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from celery.result import AsyncResult
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 
 from app.schemas import NerTextRequest, NerUrnRequest, NerUrlRequest, NerResponse
 from app.util import urn_to_path, USE_QUEUE, URN_BASE_PATH, get_text
@@ -24,8 +25,12 @@ app = FastAPI(
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
     },
-
 )
+
+
+@app.get("/")
+async def home():
+    return RedirectResponse("/docs")
 
 
 @app.get("/entities/groups", response_model=List[str])

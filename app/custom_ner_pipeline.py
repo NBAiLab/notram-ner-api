@@ -123,8 +123,8 @@ class StridedNerPipeline(TokenClassificationPipeline):
             entities = [
                 entity
                 for entity in grouped_entities
-                if entity.get("entity", None) not in self.ignore_labels
-                   and entity.get("entity_group", None) not in self.ignore_labels
+                if (entity.get("entity", None) not in self.ignore_labels
+                    and entity.get("entity_group", None) not in self.ignore_labels)
             ]
             answers.append(entities)
 

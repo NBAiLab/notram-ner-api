@@ -24,13 +24,17 @@ else:
 
 
 def load_model(path):
-    config = AutoConfig.from_pretrained(
-        os.path.join(path, "config.json"),
-    )
-    model = AutoModelForTokenClassification.from_pretrained(
-        path, config=config
-    )
-    tokenizer = AutoTokenizer.from_pretrained(path, use_fast=True, model_max_length=512)
+    if os.path.exists(path):
+        config = AutoConfig.from_pretrained(
+            os.path.join(path, "config.json"),
+        )
+        model = AutoModelForTokenClassification.from_pretrained(
+            path, config=config
+        )
+        tokenizer = AutoTokenizer.from_pretrained(path, use_fast=True, model_max_length=512)
+    else:
+        model = AutoModelForTokenClassification.from_pretrained(path)
+        tokenizer = AutoTokenizer.from_pretrained(path)
 
     args = dict(
         model=model,
@@ -41,7 +45,7 @@ def load_model(path):
         device=DEVICE
     )
     if DO_BATCHING:
-        from app.custom_ner_pipeline import StridedNerPipeline
+        from .custom_ner_pipeline import StridedNerPipeline
         args.update(dict(sentence_splitter=SENTENCE_SPLITTER))
         pipe_class = StridedNerPipeline
     else:
@@ -90,6 +94,7 @@ def run_model(model: NerPipeline, text: str, sentence_splitter: SentenceSplitter
 def batch_by_sentence(text: str, max_len: int, sentence_splitter: SentenceSplitter):
     if len(text) > max_len:
         sentences = sentence_splitter.split(text)
+        # return sentences
         texts = [""]
         tot_len = 0
         for sentence in sentences:
