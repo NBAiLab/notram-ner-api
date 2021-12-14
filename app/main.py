@@ -7,6 +7,7 @@ from uuid import uuid4
 from celery.result import AsyncResult
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
+from fastapi_versioning import VersionedFastAPI, version
 
 from app.schemas import NerTextRequest, NerUrnRequest, NerUrlRequest, NerResponse
 from app.util import urn_to_path, USE_QUEUE, URN_BASE_PATH, get_text
@@ -29,11 +30,13 @@ app = FastAPI(
 
 
 @app.get("/")
+@version(1)
 async def home():
     return RedirectResponse("/docs")
 
 
 @app.get("/entities/groups", response_model=List[str])
+@version(1)
 async def groups():
     """
     Get available entity groups.
@@ -47,6 +50,7 @@ async def groups():
 
 
 @app.post("/entities/text")
+@version(1)
 async def named_entities_from_text(body: NerTextRequest) -> NerResponse:
     """
     Get named entities for a specific text.
@@ -69,6 +73,7 @@ async def named_entities_from_text(body: NerTextRequest) -> NerResponse:
 
 
 @app.post("/entities/website")
+@version(1)
 async def named_entities_from_website(body: NerUrlRequest):
     html = urlopen(body.url)
     text = get_text(html)
@@ -85,6 +90,7 @@ async def named_entities_from_website(body: NerUrlRequest):
 
 if URN_BASE_PATH is not None:
     @app.post("/entities/urn")
+    @version(1)
     async def named_entities_from_urn(body: NerUrnRequest):
         """
         Get named entities for a specific URN.
@@ -107,8 +113,11 @@ if URN_BASE_PATH is not None:
         )
 
 if USE_QUEUE:
+    @version(1)
     @app.get("/task/{uuid}")
     async def task_result(uuid: str):
         res = AsyncResult(uuid, app=task_app)
         # TODO handle invalid uuid? Status is PENDING for invalid tasks also
         return {"status": res.status, "uuid": res.id, "result": res.result}
+
+app = VersionedFastAPI(app, version_format='{major}', prefix_format='/v{major}')
