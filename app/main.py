@@ -5,7 +5,7 @@ from urllib.request import urlopen
 from uuid import uuid4
 
 from celery.result import AsyncResult
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.responses import RedirectResponse
 from fastapi_versioning import VersionedFastAPI, version
 
@@ -20,6 +20,7 @@ API for communication with Named Entity Recognition (NER) model based on NoTraM 
 
 app = FastAPI(
     title="notram-ner-api",
+    # root_path="/ner",
     description=description,
     version="0.1.0",
     license_info={
@@ -32,7 +33,7 @@ app = FastAPI(
 @app.get("/")
 @version(1)
 async def home():
-    return RedirectResponse("/docs")
+    return RedirectResponse(app.docs_url)
 
 
 @app.get("/entities/groups", response_model=List[str])
@@ -120,4 +121,4 @@ if USE_QUEUE:
         # TODO handle invalid uuid? Status is PENDING for invalid tasks also
         return {"status": res.status, "uuid": res.id, "result": res.result}
 
-app = VersionedFastAPI(app, version_format='{major}', prefix_format='/v{major}')
+app = VersionedFastAPI(app, version_format='{major}', prefix_format='/v{major}')  # , root_path="/ner")
