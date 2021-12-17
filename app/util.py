@@ -11,10 +11,15 @@ from transformers.pipelines import AggregationStrategy
 # Some environment variables
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 USE_QUEUE = bool(strtobool(os.environ.get("ENABLE_TASK_QUEUE", "False")))
+USE_AUTH_TOKEN = os.environ.get("HF_AUTH_TOKEN", "false")
+if USE_AUTH_TOKEN.lower() in ("true", "false"):
+    USE_AUTH_TOKEN = bool(strtobool(USE_AUTH_TOKEN))
+ROOT_PATH = os.environ.get("ROOT_PATH", "")
 URN_BASE_PATH = os.environ.get("URN_BASE_PATH", None)
-MODEL_PATH = os.environ.get("MODEL_PATH", "model")  # TODO better way?
+MODEL_PATH = os.environ.get("MODEL_PATH", "./model")
 DO_BATCHING = bool(strtobool(os.environ.get("DO_BATCHING", "False")))
 DEVICE = int(os.environ.get("DEVICE", -1))
+MAX_LENGTH = int(os.environ.get("MAX_LENGTH", 512))
 SPLIT_LANG = os.environ.get("SPLIT_LANG", "no")
 
 if SPLIT_LANG.lower() == "disable":
@@ -24,17 +29,26 @@ else:
 
 
 def load_model(path):
-    if os.path.exists(path):
+    if os.path.exists(path) and os.listdir(path):
         config = AutoConfig.from_pretrained(
             os.path.join(path, "config.json"),
         )
         model = AutoModelForTokenClassification.from_pretrained(
             path, config=config
         )
-        tokenizer = AutoTokenizer.from_pretrained(path, use_fast=True, model_max_length=512)
+        tokenizer = AutoTokenizer.from_pretrained(
+            path, config=config, use_fast=True, model_max_length=MAX_LENGTH
+        )
     else:
-        model = AutoModelForTokenClassification.from_pretrained(path)
-        tokenizer = AutoTokenizer.from_pretrained(path)
+        model = AutoModelForTokenClassification.from_pretrained(
+            path, use_auth_token=USE_AUTH_TOKEN
+        )
+        tokenizer = AutoTokenizer.from_pretrained(
+            path,
+            use_fast=True,
+            model_max_length=MAX_LENGTH,
+            use_auth_token=USE_AUTH_TOKEN
+        )
 
     args = dict(
         model=model,

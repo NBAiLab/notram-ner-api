@@ -10,33 +10,36 @@ from fastapi.responses import RedirectResponse
 from fastapi_versioning import VersionedFastAPI, version
 
 from app.schemas import NerTextRequest, NerUrnRequest, NerUrlRequest, NerResponse
-from app.util import urn_to_path, USE_QUEUE, URN_BASE_PATH, get_text
+from app.util import urn_to_path, USE_QUEUE, URN_BASE_PATH, ROOT_PATH, get_text
 from .tasks import app as task_app
 from .tasks import run_model_task, model
 
-description = """
+TITLE = "notram-ner-api"
+DESCRIPTION = """
 API for communication with Named Entity Recognition (NER) model based on NoTraM (Norwegian Transformer Model).
 """
 
-app = FastAPI(
-    title="notram-ner-api",
-    # root_path="/ner",
-    description=description,
-    version="0.1.0",
+api_args = dict(
+    description=DESCRIPTION,
+    version="1",
     license_info={
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
     },
 )
+api = FastAPI(
+    title=TITLE,
+    **api_args
+)
 
 
-@app.get("/")
+@api.get("/")
 @version(1)
 async def home():
-    return RedirectResponse(app.docs_url)
+    return RedirectResponse(ROOT_PATH + api.docs_url)
 
 
-@app.get("/entities/groups", response_model=List[str])
+@api.get("/entities/groups", response_model=List[str])
 @version(1)
 async def groups():
     """
@@ -50,7 +53,7 @@ async def groups():
     return entity_groups
 
 
-@app.post("/entities/text")
+@api.post("/entities/text")
 @version(1)
 async def named_entities_from_text(body: NerTextRequest) -> NerResponse:
     """
@@ -73,7 +76,7 @@ async def named_entities_from_text(body: NerTextRequest) -> NerResponse:
     return {"status": "SUCCESS", "uuid": str(uuid4()), "result": res}  # noqa
 
 
-@app.post("/entities/website")
+@api.post("/entities/website")
 @version(1)
 async def named_entities_from_website(body: NerUrlRequest):
     html = urlopen(body.url)
@@ -90,7 +93,7 @@ async def named_entities_from_website(body: NerUrlRequest):
 
 
 if URN_BASE_PATH is not None:
-    @app.post("/entities/urn")
+    @api.post("/entities/urn")
     @version(1)
     async def named_entities_from_urn(body: NerUrnRequest):
         """
@@ -114,11 +117,28 @@ if URN_BASE_PATH is not None:
         )
 
 if USE_QUEUE:
+    @api.get("/task/{uuid}")
     @version(1)
-    @app.get("/task/{uuid}")
     async def task_result(uuid: str):
         res = AsyncResult(uuid, app=task_app)
         # TODO handle invalid uuid? Status is PENDING for invalid tasks also
         return {"status": res.status, "uuid": res.id, "result": res.result}
 
-app = VersionedFastAPI(app, version_format='{major}', prefix_format='/v{major}')  # , root_path="/ner")
+api = VersionedFastAPI(
+    api,
+    version_format='{major}',
+    prefix_format='/v{major}',
+    enable_latest=True,
+    **api_args,
+)
+
+app = FastAPI(
+    title=TITLE,
+    **api_args
+)
+
+@app.get("/")
+async def home():
+    return RedirectResponse(ROOT_PATH + api.docs_url)
+
+app.mount(ROOT_PATH, api)
