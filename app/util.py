@@ -20,6 +20,7 @@ MODEL_PATH = os.environ.get("MODEL_PATH", "./model")
 DO_BATCHING = bool(strtobool(os.environ.get("DO_BATCHING", "False")))
 DEVICE = int(os.environ.get("DEVICE", -1))
 MAX_LENGTH = int(os.environ.get("MAX_LENGTH", 512))
+VERSION = str(os.environ.get("VERSION", "1"))
 SPLIT_LANG = os.environ.get("SPLIT_LANG", "no")
 
 if SPLIT_LANG.lower() == "disable":
